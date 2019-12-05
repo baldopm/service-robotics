@@ -6,8 +6,13 @@ Servo servoRight;         // Define right servo
 
 /*------ Arduino Line Follower Code----- */
 /*-------definning Inputs------*/
-#define trigpin 7
-#define echo 6
+#define echoF 6
+#define trigpinF 7
+#define echoL 8
+#define trigpinL 9
+#define echoR 4
+#define trigpinR 5
+
 
 /*-------definning Outputs------*/
 #define LM 2       // left motor
@@ -28,12 +33,11 @@ QTRSensorsAnalog qtra((unsigned char[]) {
 unsigned int sensorValues[NUM_SENSORS];
 
 // Keeping track of distance and turning decisions
-int distance;
 #define ARRAY_SIZE 5;
 int decisions[] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
 int decisionsCount;
 int nextMove;
-long duration;
+
 
 void setup()
 {
@@ -42,8 +46,12 @@ void setup()
 
   Serial.begin(9600);    //Open serial port and set this baudrate
 
-  pinMode(trigpin, OUTPUT);
-  pinMode(echo, INPUT);
+  pinMode(trigpinF, OUTPUT);
+  pinMode(trigpinL, OUTPUT);
+  pinMode(trigpinR, OUTPUT);
+  pinMode(echoF, INPUT);
+  pinMode(echoL, INPUT);
+  pinMode(echoR, INPUT);
 
   leftServo.write(90);
   servoRight.write(90);
@@ -94,39 +102,41 @@ void loop()
     delay(2500);
 
     position = qtra.readLine(sensorValues);
-    
-    //From the decision matrix choose the next move at an intersection
-//    nextMove = decisions[decisionsCount];
-//    decisionsCount++;
-//    
-//    if (nextMove == 1) {
-//      forward();
-//    }
-//    if (nextMove == 2) {
-//      turnLeft();
-//      delay(150);
-//    }
-//    if (nextMove == 3) {
-//      turnRight();
-//      delay(150);
-//    }
 
   }
 
   //Identify sideways Right Turn T-Junction
-  if (sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues[2] > 900 && sensorValues[3] < 300 && sensorValues [4] < 300)
+  if (position <= 1700 && sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues[2] > 900 && sensorValues[3] < 300 && sensorValues [4] < 300)
   {
-    stopRobot ();
-    delay(2000);
+    position = 9000; 
+    forward();
+    delay(50);
+    if(sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues [0] < 500 && sensorValues[3] < 300 && sensorValues [4] < 300){
+      position = 9000;  
+      Serial.print("Sideways Right Turn T-Intersection");
+      turnLeft();
+      delay(2500);
+      position = qtra.readLine(sensorValues);
+    }else if(sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues[2] > 900 && sensorValues[3] < 300 && sensorValues [4] < 300){  
+      turnRight();
+      delay(150);
+      Serial.println ("Right turn: ");
+      Serial.println(position);
+    }
 
-    position = 9000;
+
     
-    Serial.print("Sideways Right Turn T-Intersection");
-
-    turnRight();
-    delay(2500);
-
-    position = qtra.readLine(sensorValues);
+//    stopRobot ();
+//    delay(2000);
+//
+//    position = 9000;
+//    
+//    Serial.print("Sideways Right Turn T-Intersection");
+//
+//    turnRight();
+//    delay(2500);
+//
+//    position = qtra.readLine(sensorValues);
   }
   
   if (position > 1700 && position < 2300 && sensorValues [0] < 500 && sensorValues [4] < 500 && position < 5000) // position is around 2000 go forward
@@ -156,13 +166,23 @@ void loop()
 //  {
 //    //will either be a dead-end or the line is lost
 //    findDistance();
+//    Serial.println ("Distance to the wall: ");
+//    Serial.println(distance);
 //    if (distance <= 15)
 //    {
 //      position = 9000;
-//      stopRobot ();
-//      delay(2000);
+//      stopRobot();
+//      delay(150);
 //      turnAround (); //reverse and turn 180 degrees because we are at a wall
+//      Serial.println ("Reverse: ");
 //      position = qtra.readLine(sensorValues);
+//    }
+//    else
+//    {
+//      forward();
+//      delay(3000);
+//      turnRight();
+//      delay(2000);
 //    }
 //      Serial.print("All white");
 //   }
@@ -194,22 +214,36 @@ void stopRobot() {
 }
 
 //Distance to object using ultrasonic sensor
-void findDistance()
+void findDistance(int &distanceF, int &distanceL, int &distanceR)
 {
   // Clears the trigpin
-  digitalWrite(trigpin, LOW);
+  digitalWrite(trigpinF, LOW);
+  digitalWrite(trigpinL, LOW);
+  digitalWrite(trigpinR, LOW);
   delayMicroseconds(2);
   // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigpin, HIGH);
+  digitalWrite(trigpinF, HIGH);
+  digitalWrite(trigpinL, HIGH);
+  digitalWrite(trigpinR, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trigpin, LOW);
+  digitalWrite(trigpinF, LOW);
+  digitalWrite(trigpinL, LOW);
+  digitalWrite(trigpinR, LOW);
   // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echo, HIGH);
+  long durationF = pulseIn(echoF, HIGH);
+  long durationL = pulseIn(echoL, HIGH);
+  long durationR = pulseIn(echoR, HIGH);
   // Calculating the distance
-  distance = duration * 0.034 / 2;
+  distanceF = durationF * 0.034 / 2;
+  distanceL = durationL * 0.034 / 2;
+  distanceR = durationR * 0.034 / 2;
   // Prints the distance on the Serial Monitor
-  Serial.print("Distance: ");
-  Serial.println(distance);
+  Serial.println("Distance Front: ");
+  Serial.println(distanceF);
+  Serial.println("Distance Left: ");
+  Serial.println(distanceL);
+  Serial.println("Distance Right: ");
+  Serial.println(distanceR);
 }
 
 //Pick up the cylinders
