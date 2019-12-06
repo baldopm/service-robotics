@@ -136,16 +136,18 @@ void loop()
   //Identify sideways Right Turn T-Junction
   if (sensorValues[0] > 850 && sensorValues[1] > 850 && sensorValues[2] > 915 && sensorValues[3] < 300 && sensorValues [4] < 300)
   {
-    stopRobot ();
-    delay(3000);
+//    stopRobot ();
+//    delay(3000);
 
     position = 9000;
     
     Serial.print("Sideways Right Turn T-Intersection");
-
+    findRightDist();
+    if(rightDist>30){forward();}
+    else{
     turnRight();
     delay(2500);
-
+    }
     position = qtra.readLine(sensorValues);
   }
   
@@ -190,7 +192,7 @@ void loop()
     findFrontDist();
     findLeftDist ();
     findRightDist();
-
+    
     Serial.print("All white IS FORWARD");
       
     if (frontDist <= 16 && leftDist <= 11 && rightDist <= 11)
@@ -201,17 +203,17 @@ void loop()
       turnAround (); //turn 180 degrees because we are at a wall
       delay(2300);
     }
-//    else if (frontDist > 16 && rightDist > 20 && leftDist <=11)
-//    {
-//      stopRobot();
-//      delay(3000);
-//      forward ();
-//      delay(1000);
-//      turnRight();
-//      delay(2500);
-//      forward();
-//      delay(800);
-//    }
+    else if (frontDist > 14 && frontDist < 35 && rightDist > 14 && leftDist <=12 && leftDist >6)
+    {
+      stopRobot();
+      delay(3000);
+      forward ();
+      delay(1000);
+      turnRight();
+      delay(2800);
+      forward();
+      delay(1000);
+    }
     }
 }
 
