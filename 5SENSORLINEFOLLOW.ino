@@ -7,12 +7,13 @@ Servo servoRight;         // Define right servo
 /*------ Arduino Line Follower Code----- */
 /*-------definning Inputs------*/
 #define echoF 6
-#define trigpinF 7
-#define echoL 8
-#define trigpinL 9
-#define echoR 4
-#define trigpinR 5
+#define trigF 7
 
+#define echoL 8
+#define trigL 9
+
+#define echoR 4
+#define trigR 5
 
 /*-------definning Outputs------*/
 #define LM 2       // left motor
@@ -33,11 +34,22 @@ QTRSensorsAnalog qtra((unsigned char[]) {
 unsigned int sensorValues[NUM_SENSORS];
 
 // Keeping track of distance and turning decisions
+int distance;
 #define ARRAY_SIZE 5;
 int decisions[] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
 int decisionsCount;
 int nextMove;
 
+long duration1;
+long duration2;
+long duration3;
+
+int frontDist;
+int rightDist;
+int leftDist;
+
+boolean isForward;
+boolean isTurning;
 
 void setup()
 {
@@ -46,11 +58,11 @@ void setup()
 
   Serial.begin(9600);    //Open serial port and set this baudrate
 
-  pinMode(trigpinF, OUTPUT);
-  pinMode(trigpinL, OUTPUT);
-  pinMode(trigpinR, OUTPUT);
+  pinMode(trigF, OUTPUT);
   pinMode(echoF, INPUT);
+  pinMode(trigL, OUTPUT);
   pinMode(echoL, INPUT);
+  pinMode(trigR, OUTPUT);
   pinMode(echoR, INPUT);
 
   leftServo.write(90);
@@ -93,7 +105,7 @@ void loop()
   if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
   {
     stopRobot ();
-    delay(2000);
+    delay(1000);
     Serial.print("Intersection");
     
     position = 9000;
@@ -102,90 +114,105 @@ void loop()
     delay(2500);
 
     position = qtra.readLine(sensorValues);
+    
+    //From the decision matrix choose the next move at an intersection
+//    nextMove = decisions[decisionsCount];
+//    decisionsCount++;
+//    
+//    if (nextMove == 1) {
+//      forward();
+//    }
+//    if (nextMove == 2) {
+//      turnLeft();
+//      delay(150);
+//    }
+//    if (nextMove == 3) {
+//      turnRight();
+//      delay(150);
+//    }
 
   }
 
   //Identify sideways Right Turn T-Junction
-  if (position <= 1700 && sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues[2] > 900 && sensorValues[3] < 300 && sensorValues [4] < 300)
+  if (sensorValues[0] > 850 && sensorValues[1] > 850 && sensorValues[2] > 915 && sensorValues[3] < 300 && sensorValues [4] < 300)
   {
-    position = 9000; 
-    forward();
-    delay(50);
-    if(sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues [0] < 500 && sensorValues[3] < 300 && sensorValues [4] < 300){
-      position = 9000;  
-      Serial.print("Sideways Right Turn T-Intersection");
-      turnLeft();
-      delay(2500);
-      position = qtra.readLine(sensorValues);
-    }else if(sensorValues[0] > 900 && sensorValues[1] > 900 && sensorValues[2] > 900 && sensorValues[3] < 300 && sensorValues [4] < 300){  
-      turnRight();
-      delay(150);
-      Serial.println ("Right turn: ");
-      Serial.println(position);
-    }
+    stopRobot ();
+    delay(3000);
 
-
+    position = 9000;
     
-//    stopRobot ();
-//    delay(2000);
-//
-//    position = 9000;
-//    
-//    Serial.print("Sideways Right Turn T-Intersection");
-//
-//    turnRight();
-//    delay(2500);
-//
-//    position = qtra.readLine(sensorValues);
+    Serial.print("Sideways Right Turn T-Intersection");
+
+    turnRight();
+    delay(2500);
+
+    position = qtra.readLine(sensorValues);
   }
   
-  if (position > 1700 && position < 2300 && sensorValues [0] < 500 && sensorValues [4] < 500 && position < 5000) // position is around 2000 go forward
+  if (position >= 1700 && position <= 2300 && sensorValues [0] < 500 && sensorValues [4] < 500 && position < 5000) // position is around 2000 go forward
   {
+    isForward = true;
+    isTurning = false;
+    
     forward();
     Serial.println ("Forward: ");
     Serial.println(position);
   }
 
-  if (position >= 2500 && position < 5000) // the line is on the left
+  if (position > 2300 && position < 5000) // the line is on the left
   {
+    isTurning = true;
+    isForward = false;
+
     turnLeft();
     delay(150);
     Serial.println ("Left turn: " );
     Serial.println (position);
   }
   
-  if (position <= 1700)  // the line is on the right
+  if (position < 1700)  // the line is on the right
   {
+    isTurning = true;
+    isForward = false;
+    
     turnRight();
     delay(150);
     Serial.println ("Right turn: ");
     Serial.println(position);
   }  
-  
-//  if (sensorValues[0] < 500 && sensorValues[1] < 500 && sensorValues[2] < 500 && sensorValues[3] < 500 && sensorValues[4] < 500) //if all are on white
-//  {
-//    //will either be a dead-end or the line is lost
-//    findDistance();
-//    Serial.println ("Distance to the wall: ");
-//    Serial.println(distance);
-//    if (distance <= 15)
+
+  //if all the sensors are on the white area
+  if (sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300 && position > 1700 && position < 2300 
+  || sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300 && position == 4000
+  || sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300 && position == 0) 
+  {
+    //will either be a dead-end or the line is lost
+    findFrontDist();
+    findLeftDist ();
+    findRightDist();
+
+    Serial.print("All white IS FORWARD");
+      
+    if (frontDist <= 16 && leftDist <= 11 && rightDist <= 11)
+    {
+      position = 9000;
+      stopRobot ();
+      delay(5000);
+      turnAround (); //turn 180 degrees because we are at a wall
+      delay(2300);
+    }
+//    else if (frontDist > 16 && rightDist > 20 && leftDist <=11)
 //    {
-//      position = 9000;
 //      stopRobot();
-//      delay(150);
-//      turnAround (); //reverse and turn 180 degrees because we are at a wall
-//      Serial.println ("Reverse: ");
-//      position = qtra.readLine(sensorValues);
-//    }
-//    else
-//    {
-//      forward();
 //      delay(3000);
+//      forward ();
+//      delay(1000);
 //      turnRight();
-//      delay(2000);
+//      delay(2500);
+//      forward();
+//      delay(800);
 //    }
-//      Serial.print("All white");
-//   }
+    }
 }
 
 // Motion routines for forward, reverse, turns, and stop
@@ -214,36 +241,58 @@ void stopRobot() {
 }
 
 //Distance to object using ultrasonic sensor
-void findDistance(int &distanceF, int &distanceL, int &distanceR)
+void findFrontDist()
 {
   // Clears the trigpin
-  digitalWrite(trigpinF, LOW);
-  digitalWrite(trigpinL, LOW);
-  digitalWrite(trigpinR, LOW);
+  digitalWrite(trigF, LOW);
   delayMicroseconds(2);
   // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigpinF, HIGH);
-  digitalWrite(trigpinL, HIGH);
-  digitalWrite(trigpinR, HIGH);
+  digitalWrite(trigF, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trigpinF, LOW);
-  digitalWrite(trigpinL, LOW);
-  digitalWrite(trigpinR, LOW);
+  digitalWrite(trigF, LOW);
   // Reads the echoPin, returns the sound wave travel time in microseconds
-  long durationF = pulseIn(echoF, HIGH);
-  long durationL = pulseIn(echoL, HIGH);
-  long durationR = pulseIn(echoR, HIGH);
+  duration1 = pulseIn(echoF, HIGH);
   // Calculating the distance
-  distanceF = durationF * 0.034 / 2;
-  distanceL = durationL * 0.034 / 2;
-  distanceR = durationR * 0.034 / 2;
+  frontDist = duration1 * 0.034 / 2;
   // Prints the distance on the Serial Monitor
-  Serial.println("Distance Front: ");
-  Serial.println(distanceF);
-  Serial.println("Distance Left: ");
-  Serial.println(distanceL);
-  Serial.println("Distance Right: ");
-  Serial.println(distanceR);
+  Serial.print("Distance: ");
+  Serial.println(frontDist);
+}
+
+void findLeftDist()
+{
+  // Clears the trigpin
+  digitalWrite(trigL, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigL, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigL, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration2 = pulseIn(echoL, HIGH);
+  // Calculating the distance
+  leftDist = duration2 * 0.034 / 2;
+  // Prints the distance on the Serial Monitor
+  Serial.print("Left Distance: ");
+  Serial.println(leftDist);
+}
+
+void findRightDist()
+{
+  // Clears the trigpin
+  digitalWrite(trigR, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigR, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigR, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration3 = pulseIn(echoR, HIGH);
+  // Calculating the distance
+  rightDist = duration3 * 0.034 / 2;
+  // Prints the distance on the Serial Monitor
+  Serial.print("Right Distance: ");
+  Serial.println(rightDist);
 }
 
 //Pick up the cylinders
@@ -274,5 +323,4 @@ void turnAround()
 {
    servoRight.write(0);
    leftServo.write (0);
-   delay (1500);
 }
