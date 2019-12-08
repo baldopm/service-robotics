@@ -36,9 +36,10 @@ unsigned int sensorValues[NUM_SENSORS];
 // Keeping track of distance and turning decisions
 int distance;
 #define ARRAY_SIZE 5;
-int decisions[] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+int decisions[] = {2, 2, 2, 1, 2, 2, 1, 1, 2, 1, 2, 1, 2, 2};
 int decisionsCount;
 int nextMove;
+int cylinder = 0;
 
 long duration1;
 long duration2;
@@ -93,7 +94,8 @@ void setup()
   }
   Serial.println();
   Serial.println();
-  delay(1000);
+  forward();
+  delay(2000);
 }
 
 void loop()
@@ -103,6 +105,61 @@ void loop()
   qtra.read(sensorValues);             //Read Sensors
   unsigned int position = qtra.readLine(sensorValues);
   isFollowing = true;
+
+  //if all the sensors are on the white area
+  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
+  {
+    Serial.print("All white IS FORWARD");
+    stopRobot();
+    delay(500);
+
+    //will either be a dead-end or the line is lost
+    findFrontDist();
+    findLeftDist ();
+    findRightDist();
+    
+    if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
+    {
+      position = 9000;
+      stopRobot ();
+      delay(1000);
+      turnAround (); //turn 180 degrees because we are at a wall
+      delay(2500);
+    }
+    //else if (frontDist > 11)
+    else if (frontDist > 16 && frontDist < 35 && rightDist > 15 && leftDist <=14 && leftDist >6)
+    {
+      position = 9000;
+      
+      stopRobot();
+      delay(3000);
+      forward ();
+      delay(2000);
+      turnRight();
+      delay(1500);
+      forward();
+      delay(1600);
+
+      position = qtra.readLine(sensorValues);
+
+    }
+    else if (frontDist > 16 && frontDist < 35 && leftDist > 15 && rightDist <=14 && rightDist >6)
+    {
+      position = 9000;
+      
+      stopRobot();
+      delay(3000);
+      forward ();
+      delay(2000);
+      turnLeft();
+      delay(1300);
+      forward();
+      delay(1600);
+
+      position = qtra.readLine(sensorValues);
+
+    }
+  }
 
   if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues [2] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
   {
@@ -115,27 +172,12 @@ void loop()
     forward();
     delay(350);
 
-    turnLeft();
-    delay(1200);
+//    turnLeft();
+//    delay(1200);
 
-    position = qtra.readLine(sensorValues);;
+    path();
 
-    //From the decision matrix choose the next move at an intersection
-    //    nextMove = decisions[decisionsCount];
-    //    decisionsCount++;
-    //
-    //    if (nextMove == 1) {
-    //      forward();
-    //    }
-    //    if (nextMove == 2) {
-    //      turnLeft();
-    //      delay(150);
-    //    }
-    //    if (nextMove == 3) {
-    //      turnRight();
-    //      delay(150);
-    //    }
-
+    position = qtra.readLine(sensorValues);
   }
 
   if (position >= 1600 && position <= 2400 && sensorValues [0] < 500 && sensorValues [4] < 500 && position < 5000) // position is around 2000 go forward
@@ -164,7 +206,8 @@ void loop()
         position = 9000;
 
         stopRobot();
-        delay(5000);
+        delay(1000);
+        path();
 
         position = qtra.readLine(sensorValues);
       }
@@ -209,7 +252,8 @@ void loop()
         position = 9000;
 
         stopRobot();
-        delay(5000);
+        delay(1000);
+        path();
 
         position = qtra.readLine(sensorValues);
       }
@@ -235,43 +279,12 @@ void loop()
     Serial.println(position);
   }
 
-  //if all the sensors are on the white area
-  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
-  {
-    Serial.print("All white IS FORWARD");
-    stopRobot();
-    delay(500);
-
-    //will either be a dead-end or the line is lost
-    findFrontDist();
-    findLeftDist ();
-    findRightDist();
-    
-    if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
-    {
-      position = 9000;
-      stopRobot ();
-      delay(1000);
-      turnAround (); //turn 180 degrees because we are at a wall
-      delay(2300);
-    }
-    else if (frontDist > 11)
-    {
-      position = 9000;
-      
-      stopRobot();
-      delay(3000);
-      forward ();
-      delay(2000);
-      turnRight();
-      delay(1400);
-      forward();
-      delay(2000);
-
-      position = qtra.readLine(sensorValues);
-
-}
-  }
+  //as a proof of the exit path
+//  if(
+//  decisions[decisionsCount]==6){
+//    cylinder=3;
+//  }
+  
 }
 
 // Motion routines for forward, reverse, turns, and stop
@@ -384,4 +397,98 @@ void turnAround()
 {
   servoRight.write(0);
   leftServo.write (0);
+}
+
+void path()
+{
+  //From the decision matrix choose the next move at an intersection
+        if(cylinder == 3){
+          exit_path();
+        }else{
+        nextMove = decisions[decisionsCount];
+        decisionsCount++;
+    
+        if (nextMove == 1) {
+          forward();
+        }
+        if (nextMove == 2) {
+          turnLeft();
+          delay(1200);
+        }
+        if (nextMove == 3) {
+          turnRight();
+          delay(1200);
+        }
+        }
+}
+
+int j=0;
+void exit_path()
+{
+  if(decisions[decisionsCount]==3){
+    if (j==0){reverse();}
+    j = j + 1;
+    if (j == 1){ forward(); } //at first cross
+    else if (j == 2){ turnRight(); } //at T junction
+    //Exit found
+    }
+  if(decisions[decisionsCount]==4){
+    j = j + 1;
+    if (j == 1){ turnLeft(); } //at first T
+    else if (j == 2){ turnRight(); } //at T junction
+    else if (j == 3){ turnLeft(); } //at cross junction
+    else if (j == 4){ forward(); } //at cross junction
+    else if (j == 5){ turnLeft(); } //at T junction
+    //Exit found  
+    }
+  if(decisions[decisionsCount]==5){
+    j = j + 1;
+    if (j == 1){ turnRight(); } //at T junction
+    else if (j == 2){ turnLeft(); } //at cross junction
+    else if (j == 3){ forward(); } //at cross junction
+    else if (j == 4){ turnLeft(); } //at T junction
+    //Exit found  
+    }
+  if(decisions[decisionsCount]==6){
+    if (j==0){reverse();}
+    j = j + 1;
+    if (j == 1){ forward(); } //at T junction
+    else if (j == 2){ turnLeft(); } //at cross junction
+    else if (j == 3){ forward(); } //at cross junction
+    else if (j == 4){ turnLeft(); } //at T junction
+    //Exit found
+    }
+  if(decisions[decisionsCount]==7){
+    j = j + 1;
+    if (j == 1){ turnLeft(); } //at cross junction
+    else if (j == 2){ forward(); } //at cross junction
+    else if (j == 3){ turnLeft(); } //at T junction
+    //Exit found
+    }
+  if(decisions[decisionsCount]==8){
+    j = j + 1;
+    if (j == 1){ turnLeft(); } //at cross junction
+    else if (j == 2){ turnRight(); } //at T junction
+    //Exit found
+    }
+  if(decisions[decisionsCount]==10){
+    if (j==0){reverse();}
+    j = j + 1;
+    if (j == 1){ turnLeft(); } //at T junction
+    //Exit found
+    }
+  if(decisions[decisionsCount]==11){
+    if (j==0){reverse();}
+    j = j + 1;
+    if (j == 1){ turnRight(); } //at cross junction
+    else if (j == 2){ turnLeft(); } //at T junction
+    //Exit found
+    }
+  if(decisions[decisionsCount]==12){
+    if (j==0){reverse();}
+    j = j + 1;
+    if (j == 1){ turnLeft(); } //at cross junction
+    else if (j == 2){ turnLeft(); } //at T junction
+    //Exit found
+    } 
 }
