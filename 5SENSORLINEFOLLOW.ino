@@ -50,6 +50,7 @@ int leftDist;
 
 boolean isForward;
 boolean isTurning;
+boolean isFollowing;
 
 void setup()
 {
@@ -68,7 +69,7 @@ void setup()
   leftServo.write(90);
   servoRight.write(90);
 
-  delay(5000);
+  delay(1000);
 
   for (int i = 0; i < 400; i++)  // make the calibration take about 10 seconds
   {
@@ -101,120 +102,176 @@ void loop()
   //from right to left the position varies from 0 - 4000 with the middle at 2000
   qtra.read(sensorValues);             //Read Sensors
   unsigned int position = qtra.readLine(sensorValues);
+  isFollowing = true;
 
-  if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
+  if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues [2] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
   {
     stopRobot ();
     delay(1000);
     Serial.print("Intersection");
-    
+
     position = 9000;
-    
+
+    forward();
+    delay(350);
+
     turnLeft();
-    delay(2500);
+    delay(1200);
 
-    position = qtra.readLine(sensorValues);
-    
+    position = qtra.readLine(sensorValues);;
+
     //From the decision matrix choose the next move at an intersection
-//    nextMove = decisions[decisionsCount];
-//    decisionsCount++;
-//    
-//    if (nextMove == 1) {
-//      forward();
-//    }
-//    if (nextMove == 2) {
-//      turnLeft();
-//      delay(150);
-//    }
-//    if (nextMove == 3) {
-//      turnRight();
-//      delay(150);
-//    }
+    //    nextMove = decisions[decisionsCount];
+    //    decisionsCount++;
+    //
+    //    if (nextMove == 1) {
+    //      forward();
+    //    }
+    //    if (nextMove == 2) {
+    //      turnLeft();
+    //      delay(150);
+    //    }
+    //    if (nextMove == 3) {
+    //      turnRight();
+    //      delay(150);
+    //    }
 
   }
 
-  //Identify sideways Right Turn T-Junction
-  if (sensorValues[0] > 850 && sensorValues[1] > 850 && sensorValues[2] > 915 && sensorValues[3] < 300 && sensorValues [4] < 300)
+  if (position >= 1600 && position <= 2400 && sensorValues [0] < 500 && sensorValues [4] < 500 && position < 5000) // position is around 2000 go forward
   {
-//    stopRobot ();
-//    delay(3000);
-
-    position = 9000;
-    
-    Serial.print("Sideways Right Turn T-Intersection");
-    findRightDist();
-    if(rightDist>30){forward();}
-    else{
-    turnRight();
-    delay(2500);
-    }
-    position = qtra.readLine(sensorValues);
-  }
-  
-  if (position >= 1700 && position <= 2300 && sensorValues [0] < 500 && sensorValues [4] < 500 && position < 5000) // position is around 2000 go forward
-  {
-    isForward = true;
-    isTurning = false;
-    
+    isFollowing = true;
     forward();
     Serial.println ("Forward: ");
     Serial.println(position);
   }
 
-  if (position > 2300 && position < 5000) // the line is on the left
+  if (position < 1600)  //the line is on the right
   {
-    isTurning = true;
-    isForward = false;
+    //The two rightmost sensors will be on the line
+    if (sensorValues [0] > 700 && sensorValues [1] > 700)
+    {
+      stopRobot();
+      delay(500);
 
-    turnLeft();
-    delay(150);
-    Serial.println ("Left turn: " );
-    Serial.println (position);
-  }
-  
-  if (position < 1700)  // the line is on the right
-  {
-    isTurning = true;
-    isForward = false;
-    
-    turnRight();
-    delay(150);
+      forward();
+      delay(500);
+      qtra.read(sensorValues);       //Read Sensors
+
+      // If one of the three middle sensors is on a line we are at a right turn T-Junction
+      if (sensorValues [4] < 300 && sensorValues [2] > 800 || sensorValues [4] < 300 && sensorValues [1] > 800 || sensorValues [4] < 300 && sensorValues [3] > 800)
+      {
+        position = 9000;
+
+        stopRobot();
+        delay(5000);
+
+        position = qtra.readLine(sensorValues);
+      }
+      //Otherwise we can turn fully right
+      else
+      {
+        turnRight();
+        delay(1150);
+        forward();
+        delay(350);
+
+        position = qtra.readLine(sensorValues);
+      }
+    }
+    //If there is a misalignment while going straight it can be corrected
+    else
+    {
+      turnRight();
+      delay(100);
+    }
+
     Serial.println ("Right turn: ");
     Serial.println(position);
-  }  
+  }
+
+  if (position > 2600 && position < 5000) //the line is on the left
+  {
+    //The two leftmost sensors should be on the line
+    if (sensorValues [3] > 700 && sensorValues [4] > 700)
+    {
+      stopRobot();
+      delay(500);
+
+      //Go slightly forward
+      forward();
+      delay(350);
+      qtra.read(sensorValues);  //Read Sensors
+
+      // If one of the three middle sensors is on a line we are at a left Turn T-Junction
+      if (sensorValues [4] < 300 && sensorValues [2] > 800 || sensorValues [4] < 300 && sensorValues [1] > 800 || sensorValues [4] < 300 && sensorValues [3] > 800)
+      {
+        position = 9000;
+
+        stopRobot();
+        delay(5000);
+
+        position = qtra.readLine(sensorValues);
+      }
+      //Otherwise we can fully turn left if there is no other option
+      else
+      {
+        turnLeft();
+        delay(1150);
+        forward();
+        delay(350);
+
+        position = qtra.readLine(sensorValues);
+      }
+    }
+    //If there is a slight misalignment while going straight it can be corrected
+    else
+    {
+      turnLeft();
+      delay(95);
+    }
+
+    Serial.println ("Left turn: ");
+    Serial.println(position);
+  }
 
   //if all the sensors are on the white area
-  if (sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300 && position > 1700 && position < 2300 
-  || sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300 && position == 4000
-  || sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300 && position == 0) 
+  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
   {
+    Serial.print("All white IS FORWARD");
+    stopRobot();
+    delay(500);
+
     //will either be a dead-end or the line is lost
     findFrontDist();
     findLeftDist ();
     findRightDist();
     
-    Serial.print("All white IS FORWARD");
-      
-    if (frontDist <= 16 && leftDist <= 11 && rightDist <= 11)
+    if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
     {
       position = 9000;
       stopRobot ();
-      delay(5000);
+      delay(1000);
       turnAround (); //turn 180 degrees because we are at a wall
       delay(2300);
     }
-    else if (frontDist > 14 && frontDist < 35 && rightDist > 14 && leftDist <=12 && leftDist >6)
+    else if (frontDist > 11)
     {
+      position = 9000;
+      
       stopRobot();
       delay(3000);
       forward ();
-      delay(1000);
+      delay(2000);
       turnRight();
-      delay(2800);
+      delay(1400);
       forward();
-      delay(1000);
-    }
-    }
+      delay(2000);
+
+      position = qtra.readLine(sensorValues);
+
+}
+  }
 }
 
 // Motion routines for forward, reverse, turns, and stop
@@ -230,10 +287,12 @@ void reverse() {
 
 void turnRight() {
   leftServo.write(0);
-  servoRight.write(90);
+  //changed right from 90 to 0
+  servoRight.write(0);
 }
 void turnLeft() {
-  leftServo.write(90);
+  leftServo.write(180);
+  //changed left from 90 to 180
   servoRight.write(180);
 }
 
@@ -323,6 +382,6 @@ void deadEnd ()
 
 void turnAround()
 {
-   servoRight.write(0);
-   leftServo.write (0);
+  servoRight.write(0);
+  leftServo.write (0);
 }
