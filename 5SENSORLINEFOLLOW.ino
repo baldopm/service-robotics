@@ -2,6 +2,9 @@
 Servo leftServo;          // Define left servo
 Servo servoRight;         // Define right servo
 
+Servo servoG; 
+Servo servoA;
+
 #include <QTRSensors.h>         //Pololu QTR Sensor Library
 
 /*------ Arduino Line Follower Code----- */
@@ -16,8 +19,14 @@ Servo servoRight;         // Define right servo
 #define trigR 5
 
 /*-------definning Outputs------*/
-#define LM 2       // left motor
-#define RM 3       // right motor
+#define LM 3       // left motor
+#define RM 13       // right motor
+
+// Declare the Servo pin 
+#define servoPinG 12 //To be changed
+#define servoPinA 11 
+
+#define interruptPin 2 //interrupt sensor
 
 //Create QTR Sensor Line Following Object
 //QTRSensorsRC qtrrc((unsigned char[]) {LS, MS, RS}, 3, 2500, QTR_NO_EMITTER_PIN);
@@ -36,10 +45,19 @@ unsigned int sensorValues[NUM_SENSORS];
 // Keeping track of distance and turning decisions
 int distance;
 #define ARRAY_SIZE 5;
-int decisions[] = {2, 2, 2, 1, 2, 2, 1, 1, 2, 1, 2, 1, 2, 2};
-int decisionsCount;
+int interTurns[] = {2, 2, 2, 2, 2, 2, 2, 2};
+int intersectionCount = 0;
+int deadCount = 0;
+
+int rightJunction[] = {1, 1, 1};
+int rightCount = 0;
+
+int leftJunction[] = {2, 1, 2};
+//int leftJunction[] = {1,1,1};
+int leftCount = 0;
+
 int nextMove;
-int cylinder = 0;
+int whiteCount=0;
 
 long duration1;
 long duration2;
@@ -53,10 +71,26 @@ boolean isForward;
 boolean isTurning;
 boolean isFollowing;
 
+int cylinder=0;
+int counter=0;
+
+boolean grip = false;
+unsigned long button_time = 0;
+unsigned long last_button_time = 0;
+
 void setup()
 {
   leftServo.attach(LM);  // Set left servo to digital pin 4
   servoRight.attach(RM);  // Set right servo to digital pin 3
+   
+   servoG.attach(servoPinG); 
+   servoA.attach(servoPinA);
+
+   servoG.write(50);
+   servoA.write(80);
+
+   //Attach button switch
+   attachInterrupt(digitalPinToInterrupt(2), onPressed, RISING);
 
   Serial.begin(9600);    //Open serial port and set this baudrate
 
@@ -66,10 +100,8 @@ void setup()
   pinMode(echoL, INPUT);
   pinMode(trigR, OUTPUT);
   pinMode(echoR, INPUT);
-
-  leftServo.write(90);
-  servoRight.write(90);
-
+  
+  stopRobot();
   delay(1000);
 
   for (int i = 0; i < 400; i++)  // make the calibration take about 10 seconds
@@ -94,8 +126,10 @@ void setup()
   }
   Serial.println();
   Serial.println();
-  forward();
-  delay(2000);
+
+  leftServo.write(90);
+  servoRight.write(90);
+  delay(1000);
 }
 
 void loop()
@@ -106,77 +140,54 @@ void loop()
   unsigned int position = qtra.readLine(sensorValues);
   isFollowing = true;
 
-  //if all the sensors are on the white area
-  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
-  {
-    Serial.print("All white IS FORWARD");
+    if(grip){
     stopRobot();
-    delay(500);
-
-    //will either be a dead-end or the line is lost
-    findFrontDist();
-    findLeftDist ();
-    findRightDist();
-    
-    if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
-    {
-      position = 9000;
-      stopRobot ();
-      delay(1000);
-      turnAround (); //turn 180 degrees because we are at a wall
-      delay(2500);
-    }
-    //else if (frontDist > 11)
-    else if (frontDist > 16 && frontDist < 35 && rightDist > 15 && leftDist <=14 && leftDist >6)
-    {
-      position = 9000;
-      
-      stopRobot();
-      delay(3000);
-      forward ();
-      delay(2000);
-      turnRight();
-      delay(1500);
-      forward();
-      delay(1600);
-
-      position = qtra.readLine(sensorValues);
-
-    }
-    else if (frontDist > 16 && frontDist < 35 && leftDist > 15 && rightDist <=14 && rightDist >6)
-    {
-      position = 9000;
-      
-      stopRobot();
-      delay(3000);
-      forward ();
-      delay(2000);
-      turnLeft();
-      delay(1300);
-      forward();
-      delay(1600);
-
-      position = qtra.readLine(sensorValues);
-
-    }
+    delay(50);
+    leftServo.detach(); //just tried this since my wheels were drifting
+    servoRight.detach(); //just tried this since my wheels were drifting
+    pickUp();
   }
-
+  
   if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues [2] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
   {
-    stopRobot ();
-    delay(1000);
     Serial.print("Intersection");
 
     position = 9000;
 
+    stopRobot();
+    delay(1000);
+
     forward();
-    delay(350);
+    delay(500);
 
-//    turnLeft();
-//    delay(1200);
+    //From the decision matrix choose the next move at an intersection
+    nextMove = interTurns[intersectionCount];
+    intersectionCount++;
 
-    path();
+    //reset count to 0 if exceeds array size
+    if (intersectionCount = 8)
+    {
+      intersectionCount = 0;
+    }
 
+    if (deadCount == 4)
+    {
+      forward();
+      delay(500);
+      nextMove = 0;
+    }
+    if (nextMove == 1) {
+      forward();
+      delay(500);
+    }
+    if (nextMove == 2) {
+      turnLeft();
+      delay(1200);
+    }
+    if (nextMove == 3) {
+      turnRight();
+      delay(1150);
+    }
     position = qtra.readLine(sensorValues);
   }
 
@@ -194,20 +205,36 @@ void loop()
     if (sensorValues [0] > 700 && sensorValues [1] > 700)
     {
       stopRobot();
-      delay(500);
-
+      delay(50);
       forward();
       delay(500);
+      
       qtra.read(sensorValues);       //Read Sensors
-
+      
       // If one of the three middle sensors is on a line we are at a right turn T-Junction
       if (sensorValues [4] < 300 && sensorValues [2] > 800 || sensorValues [4] < 300 && sensorValues [1] > 800 || sensorValues [4] < 300 && sensorValues [3] > 800)
       {
         position = 9000;
 
         stopRobot();
-        delay(1000);
-        path();
+        delay(500);
+
+        nextMove = rightJunction [rightCount];
+        rightCount ++;
+
+        if (rightCount == 3)
+        {
+          rightCount = 0;
+        }
+
+        if (nextMove == 1) {
+          forward();
+          delay(500);
+        }
+        if (nextMove == 3) {
+          turnRight();
+          delay(1150);
+        }
 
         position = qtra.readLine(sensorValues);
       }
@@ -216,8 +243,6 @@ void loop()
       {
         turnRight();
         delay(1150);
-        forward();
-        delay(350);
 
         position = qtra.readLine(sensorValues);
       }
@@ -226,34 +251,48 @@ void loop()
     else
     {
       turnRight();
-      delay(100);
+      delay(85);
     }
 
     Serial.println ("Right turn: ");
     Serial.println(position);
   }
 
-  if (position > 2600 && position < 5000) //the line is on the left
+  if (position > 2500 && position < 5000) //the line is on the left
   {
     //The two leftmost sensors should be on the line
     if (sensorValues [3] > 700 && sensorValues [4] > 700)
     {
+      //Go slightly forward
       stopRobot();
+      delay(50);
+      forward();
       delay(500);
 
-      //Go slightly forward
-      forward();
-      delay(350);
-      qtra.read(sensorValues);  //Read Sensors
-
+      qtra.read(sensorValues);       //Read Sensors
       // If one of the three middle sensors is on a line we are at a left Turn T-Junction
-      if (sensorValues [4] < 300 && sensorValues [2] > 800 || sensorValues [4] < 300 && sensorValues [1] > 800 || sensorValues [4] < 300 && sensorValues [3] > 800)
+      if (sensorValues [0] < 300 && sensorValues [2] > 800 || sensorValues [0] < 300 && sensorValues [1] > 800 || sensorValues [0] < 300 && sensorValues [3] > 800)
       {
         position = 9000;
 
         stopRobot();
         delay(1000);
-        path();
+
+        nextMove = leftJunction [leftCount];
+        leftCount++;
+
+        if (leftCount == 3)
+        {
+          leftCount = 0;
+        }
+        if (nextMove == 1) {
+          forward();
+          delay(500);
+        }
+        if (nextMove == 2) {
+          turnLeft();
+          delay(1200);
+        }
 
         position = qtra.readLine(sensorValues);
       }
@@ -261,9 +300,7 @@ void loop()
       else
       {
         turnLeft();
-        delay(1150);
-        forward();
-        delay(350);
+        delay(1200);
 
         position = qtra.readLine(sensorValues);
       }
@@ -272,20 +309,107 @@ void loop()
     else
     {
       turnLeft();
-      delay(95);
+      delay(85);
     }
 
     Serial.println ("Left turn: ");
     Serial.println(position);
   }
 
-  //as a proof of the exit path
-//  if(
-//  decisions[decisionsCount]==6){
-//    cylinder=3;
-//  }
-  
-}
+  //if all the sensors are on the white area
+  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
+  {
+    Serial.print("All white IS FORWARD");
+    stopRobot();
+    delay(500);
+
+    //will either be a dead-end or the line is lost
+    findFrontDist();
+    findLeftDist ();
+    findRightDist();
+
+    stopRobot();
+    delay(500);
+
+    if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
+    {
+      position = 9000;
+
+      turnAround (); //turn 180 degrees because we are at a wall
+      delay(2350);
+      deadCount++;
+      
+      if (sensorValues[1] < 500|| sensorValues[2] < 500|| sensorValues[3]<500)
+      {
+        turnRight();
+        delay(100);
+      }
+      
+      position = qtra.readLine(sensorValues);
+    }
+    else if (frontDist > 16 && leftDist <= 14)
+    {
+      position = 9000;
+
+      findFrontDist();
+      while (frontDist >= 10)
+      {
+        Serial.println (frontDist);
+        forward(); 
+        delay(100);
+        findFrontDist();
+        findLeftDist();
+        if (leftDist < 11)
+          {
+            turnRight();
+            delay(10);
+          }
+      }
+
+      turnRight();
+      delay(1150);
+
+      findFrontDist();
+      stopRobot();
+      delay(50);
+      while (frontDist >=26)
+      {
+        forward();
+        delay(100);
+        findFrontDist();
+        findLeftDist();
+        qtra.read(sensorValues);
+        if (leftDist < 11)
+        {
+          turnRight();
+          delay(10);
+        }
+        if (rightDist <= 11)
+        {
+          turnLeft();
+          delay(40);
+        }
+        if (sensorValues [1] > 500 || sensorValues [2] > 500 || sensorValues [3] > 500)
+        {
+          break;
+        }
+      }
+      position = qtra.readLine(sensorValues);
+    }
+//    else if (frontDist > 16 && frontDist < 35 && leftDist > 15 && rightDist <= 14 && rightDist > 6)
+//    {
+////      position = 9000;
+////
+////      forward ();
+////      delay(1600);
+////      turnLeft();
+////      delay(1100);
+////      forward();
+////      delay(1100);
+////
+////      position = qtra.readLine(sensorValues);
+    }
+  }
 
 // Motion routines for forward, reverse, turns, and stop
 void forward() {
@@ -310,8 +434,14 @@ void turnLeft() {
 }
 
 void stopRobot() {
-  leftServo.write(90);
-  servoRight.write(90);
+  leftServo.write(91);
+  servoRight.write(92);
+}
+
+void turnAround()
+{
+  servoRight.write(0);
+  leftServo.write (0);
 }
 
 //Distance to object using ultrasonic sensor
@@ -369,126 +499,69 @@ void findRightDist()
   Serial.println(rightDist);
 }
 
-//Pick up the cylinders
-void pickUp ()
+void onPressed()
 {
-
+  button_time = millis();
+  if(button_time - last_button_time > 250)
+  {
+    grip = true;
+    last_button_time = button_time;
+  }
 }
 
-//At a dead end reverse and turn around 180 degrees
-void deadEnd ()
-{
-  stopRobot();
-  delay(500);
-  turnLeft();
-  delay(1000);
-  reverse();
-  delay (1000);
-  turnLeft ();
-  delay(2000);
-  reverse();
-  delay(800);
-  turnLeft();
-  delay(2000);
-  stopRobot();
+// do the part of picking it up
+void pickUp()
+{ 
+   servoG.write(80); // Open gripper
+   delay(2000);
+   int pos = 0;
+   
+   for (pos = 80; pos <= 168; pos+=1){
+    servoA.write(pos);
+    delay(10);
+   }
+    // Down position
+   delay(1000);
+   servoG.write(28); // Close gripper
+   delay(1000);
+   
+   for(pos = 168; pos >= 65; pos-=1){
+    servoA.write(pos);
+    delay(10);
+   }
+   
+   delay(2000);
+   servoG.write(40); //open gripper
+   delay(1000);
+   grip = false; // no need to grip any more
+   leftServo.attach(LM);  //re-attach the servos
+   servoRight.attach(RM);
 }
 
-void turnAround()
+void pickUpAndHold ()
 {
-  servoRight.write(0);
-  leftServo.write (0);
-}
-
-void path()
-{
-  //From the decision matrix choose the next move at an intersection
-        if(cylinder == 3){
-          exit_path();
-        }else{
-        nextMove = decisions[decisionsCount];
-        decisionsCount++;
-    
-        if (nextMove == 1) {
-          forward();
-        }
-        if (nextMove == 2) {
-          turnLeft();
-          delay(1200);
-        }
-        if (nextMove == 3) {
-          turnRight();
-          delay(1200);
-        }
-        }
-}
-
-int j=0;
-void exit_path()
-{
-  if(decisions[decisionsCount]==3){
-    if (j==0){reverse();}
-    j = j + 1;
-    if (j == 1){ forward(); } //at first cross
-    else if (j == 2){ turnRight(); } //at T junction
-    //Exit found
-    }
-  if(decisions[decisionsCount]==4){
-    j = j + 1;
-    if (j == 1){ turnLeft(); } //at first T
-    else if (j == 2){ turnRight(); } //at T junction
-    else if (j == 3){ turnLeft(); } //at cross junction
-    else if (j == 4){ forward(); } //at cross junction
-    else if (j == 5){ turnLeft(); } //at T junction
-    //Exit found  
-    }
-  if(decisions[decisionsCount]==5){
-    j = j + 1;
-    if (j == 1){ turnRight(); } //at T junction
-    else if (j == 2){ turnLeft(); } //at cross junction
-    else if (j == 3){ forward(); } //at cross junction
-    else if (j == 4){ turnLeft(); } //at T junction
-    //Exit found  
-    }
-  if(decisions[decisionsCount]==6){
-    if (j==0){reverse();}
-    j = j + 1;
-    if (j == 1){ forward(); } //at T junction
-    else if (j == 2){ turnLeft(); } //at cross junction
-    else if (j == 3){ forward(); } //at cross junction
-    else if (j == 4){ turnLeft(); } //at T junction
-    //Exit found
-    }
-  if(decisions[decisionsCount]==7){
-    j = j + 1;
-    if (j == 1){ turnLeft(); } //at cross junction
-    else if (j == 2){ forward(); } //at cross junction
-    else if (j == 3){ turnLeft(); } //at T junction
-    //Exit found
-    }
-  if(decisions[decisionsCount]==8){
-    j = j + 1;
-    if (j == 1){ turnLeft(); } //at cross junction
-    else if (j == 2){ turnRight(); } //at T junction
-    //Exit found
-    }
-  if(decisions[decisionsCount]==10){
-    if (j==0){reverse();}
-    j = j + 1;
-    if (j == 1){ turnLeft(); } //at T junction
-    //Exit found
-    }
-  if(decisions[decisionsCount]==11){
-    if (j==0){reverse();}
-    j = j + 1;
-    if (j == 1){ turnRight(); } //at cross junction
-    else if (j == 2){ turnLeft(); } //at T junction
-    //Exit found
-    }
-  if(decisions[decisionsCount]==12){
-    if (j==0){reverse();}
-    j = j + 1;
-    if (j == 1){ turnLeft(); } //at cross junction
-    else if (j == 2){ turnLeft(); } //at T junction
-    //Exit found
-    } 
+   servoG.write(80); // Open gripper
+   delay(2000);
+   int pos = 0;
+   
+   for (pos = 80; pos <= 168; pos+=1){
+    servoA.write(pos);
+    delay(10);
+   }
+    // Down position
+   delay(1000);
+   servoG.write(28); // Close gripper
+   delay(1000);
+   
+   for(pos = 168; pos >= 65; pos-=1){
+    servoA.write(pos);
+    delay(10);
+   }
+   
+   delay(2000);
+   //servoG.write(40); //open gripper
+   delay(1000);
+   grip = false; // no need to grip any more
+   leftServo.attach(LM);  //re-attach the servos
+   servoRight.attach(RM);
 }
