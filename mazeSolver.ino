@@ -51,7 +51,7 @@ int intersectionCount = 0;
 int rightJunction[] = {1, 1, 1};
 int rightCount = 0;
 
-int leftJunction[] = {2, 2, 2};
+int leftJunction[] = {2, 1, 2};
 //int leftJunction[] = {1,1,1};
 int leftCount = 0;
 
@@ -73,16 +73,23 @@ boolean isFollowing;
 int cylinder=0;
 int counter=0;
 
+boolean grip = false;
+unsigned long button_time = 0;
+unsigned long last_button_time = 0;
+
 void setup()
 {
   leftServo.attach(LM);  // Set left servo to digital pin 4
   servoRight.attach(RM);  // Set right servo to digital pin 3
+   
+   servoG.attach(servoPinG); 
+   servoA.attach(servoPinA);
 
-  servoG.write(50);
-  servoA.write(80);
-  
-  servoG.attach(servoPinG); 
-  servoA.attach(servoPinA);
+   servoG.write(50);
+   servoA.write(80);
+
+   //Attach button switch
+   attachInterrupt(digitalPinToInterrupt(2), onPressed, RISING);
 
   Serial.begin(9600);    //Open serial port and set this baudrate
 
@@ -92,14 +99,8 @@ void setup()
   pinMode(echoL, INPUT);
   pinMode(trigR, OUTPUT);
   pinMode(echoR, INPUT);
-
-  //Attach button switch
-  //pinMode(interruptPin, INPUT_PULLUP); //Interrupt sensor
-  //attachInterrupt(digitalPinToInterrupt(interruptPin), cylinder_found, FALLING);
-
-  leftServo.write(92);
-  servoRight.write(90);
-
+  
+  stopRobot();
   delay(1000);
 
   for (int i = 0; i < 400; i++)  // make the calibration take about 10 seconds
@@ -138,23 +139,31 @@ void loop()
   unsigned int position = qtra.readLine(sensorValues);
   isFollowing = true;
 
+    if(grip){
+    stopRobot();
+    delay(50);
+    leftServo.detach(); //just tried this since my wheels were drifting
+    servoRight.detach(); //just tried this since my wheels were drifting
+    pickUp();
+  }
+  
   if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues [2] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
   {
-    //stopRobot ();
-    delay(800);
+    stopRobot ();
+    delay(100);
     Serial.print("Intersection");
 
     position = 9000;
 
-    //forward();
-    //delay(500);
+    forward();
+    delay(200);
 
     //From the decision matrix choose the next move at an intersection
     nextMove = interTurns[intersectionCount];
     intersectionCount++;
 
     //reset count to 0 if exceeds array size
-    if (intersectionCount = 7)
+    if (intersectionCount = 8)
     {
       intersectionCount = 0;
     }
@@ -360,26 +369,26 @@ void loop()
           turnRight();
           delay(10);
         }
-        if (sensorValues [1] > 500 || sensorValues [2] > 500 || sensorValues [3] > 500 && whiteCount == 0)
-        {
-          whiteCount++;
-          break;
-        }
-      }
+//        if (sensorValues [1] > 500 || sensorValues [2] > 500 || sensorValues [3] > 500 && whiteCount == 0)
+//        {
+//          whiteCount++;
+//          break;
+//        }
+//      }
       //position = qtra.readLine(sensorValues);
     }
-    else if (frontDist > 16 && frontDist < 35 && leftDist > 15 && rightDist <= 14 && rightDist > 6)
-    {
-//      position = 9000;
-//
-//      forward ();
-//      delay(1600);
-//      turnLeft();
-//      delay(1100);
-//      forward();
-//      delay(1100);
-//
-//      position = qtra.readLine(sensorValues);
+//    else if (frontDist > 16 && frontDist < 35 && leftDist > 15 && rightDist <= 14 && rightDist > 6)
+//    {
+////      position = 9000;
+////
+////      forward ();
+////      delay(1600);
+////      turnLeft();
+////      delay(1100);
+////      forward();
+////      delay(1100);
+////
+////      position = qtra.readLine(sensorValues);
     }
   }
 }
@@ -407,8 +416,8 @@ void turnLeft() {
 }
 
 void stopRobot() {
-  leftServo.write(92);
-  servoRight.write(90);
+  leftServo.write(91);
+  servoRight.write(92);
 }
 
 void turnAround()
@@ -470,4 +479,71 @@ void findRightDist()
   // Prints the distance on the Serial Monitor
   Serial.print("Right Distance: ");
   Serial.println(rightDist);
+}
+
+void onPressed()
+{
+  button_time = millis();
+  if(button_time - last_button_time > 250)
+  {
+    grip = true;
+    last_button_time = button_time;
+  }
+}
+
+// do the part of picking it up
+void pickUp()
+{ 
+   servoG.write(80); // Open gripper
+   delay(2000);
+   int pos = 0;
+   
+   for (pos = 80; pos <= 168; pos+=1){
+    servoA.write(pos);
+    delay(10);
+   }
+    // Down position
+   delay(1000);
+   servoG.write(28); // Close gripper
+   delay(1000);
+   
+   for(pos = 168; pos >= 65; pos-=1){
+    servoA.write(pos);
+    delay(10);
+   }
+   
+   delay(2000);
+   servoG.write(40); //open gripper
+   delay(1000);
+   grip = false; // no need to grip any more
+   leftServo.attach(LM);  //re-attach the servos
+   servoRight.attach(RM);
+}
+
+void pickUpAndHold ()
+{
+   servoG.write(80); // Open gripper
+   delay(2000);
+   int pos = 0;
+   
+   for (pos = 80; pos <= 168; pos+=1){
+    servoA.write(pos);
+    delay(10);
+   }
+    // Down position
+   delay(1000);
+   servoG.write(28); // Close gripper
+   delay(1000);
+   
+   for(pos = 168; pos >= 65; pos-=1){
+    servoA.write(pos);
+    delay(10);
+   }
+   
+   delay(2000);
+   //servoG.write(40); //open gripper
+   delay(1000);
+   grip = false; // no need to grip any more
+   leftServo.attach(LM);  //re-attach the servos
+   servoRight.attach(RM);
 }
