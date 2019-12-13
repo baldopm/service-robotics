@@ -212,12 +212,12 @@ void loop()
       qtra.read(sensorValues);       //Read Sensors
       
       // If one of the three middle sensors is on a line we are at a right turn T-Junction
-      if (sensorValues [4] < 300 && sensorValues [2] > 800 || sensorValues [4] < 300 && sensorValues [1] > 800 || sensorValues [4] < 300 && sensorValues [3] > 800)
+      if (sensorValues [4] < 300 && sensorValues [2] > 500 || sensorValues [4] < 300 && sensorValues [1] > 500 || sensorValues [4] < 300 && sensorValues [3] > 500)
       {
         position = 9000;
 
         stopRobot();
-        delay(500);
+        delay(3000);
 
         nextMove = rightJunction [rightCount];
         rightCount ++;
@@ -271,12 +271,12 @@ void loop()
 
       qtra.read(sensorValues);       //Read Sensors
       // If one of the three middle sensors is on a line we are at a left Turn T-Junction
-      if (sensorValues [0] < 300 && sensorValues [2] > 800 || sensorValues [0] < 300 && sensorValues [1] > 800 || sensorValues [0] < 300 && sensorValues [3] > 800)
+      if (sensorValues [0] < 300 && sensorValues [2] > 500 || sensorValues [0] < 300 && sensorValues [1] > 500 || sensorValues [0] < 300 && sensorValues [3] > 500)
       {
         position = 9000;
 
         stopRobot();
-        delay(1000);
+        delay(3000);
 
         nextMove = leftJunction [leftCount];
         leftCount++;
@@ -317,7 +317,7 @@ void loop()
   }
 
   //if all the sensors are on the white area
-  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
+  if (sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
   {
     Serial.print("All white IS FORWARD");
     stopRobot();
@@ -336,23 +336,17 @@ void loop()
       position = 9000;
 
       turnAround (); //turn 180 degrees because we are at a wall
-      delay(2350);
+      delay(2400);
       deadCount++;
-      
-      if (sensorValues[1] < 500|| sensorValues[2] < 500|| sensorValues[3]<500)
-      {
-        turnRight();
-        delay(100);
-      }
       
       position = qtra.readLine(sensorValues);
     }
-    else if (frontDist > 16 && leftDist <= 14)
+    else if (frontDist > 16 && leftDist <= 14 || frontDist ==0 && leftDist <= 14)
     {
       position = 9000;
 
       findFrontDist();
-      while (frontDist >= 10)
+      while (frontDist >= 10 || frontDist ==0)
       {
         Serial.println (frontDist);
         forward(); 
@@ -372,7 +366,7 @@ void loop()
       findFrontDist();
       stopRobot();
       delay(50);
-      while (frontDist >=26)
+      while (frontDist >=26 || frontDist ==0)
       {
         forward();
         delay(100);
