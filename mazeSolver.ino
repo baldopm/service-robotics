@@ -42,30 +42,20 @@ QTRSensorsAnalog qtra((unsigned char[]) {
 }, NUM_SENSORS, NUM_SAMPLES_PER_SENSOR, EMITTER_PIN);
 unsigned int sensorValues[NUM_SENSORS];
 
-unsigned int position = qtra.readLine(sensorValues);
-
 // Keeping track of distance and turning decisions
 int distance;
 #define ARRAY_SIZE 5;
-//need to take the first cylinder
-//int interTurns[] = {2, 2, 2, 2, 2, 2, 1, 2};
-
-//the first cylinder has been taken
-int interTurns[] = {2, 1, 2, 2, 2, 1, 2};
-
+//int interTurns[] = {2, 2, 2, 2, 2, 2, 2, 2};
+int interTurns[] = {2, 2, 3, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2};
 int intersectionCount = 0;
+int deadCount = 0;
 
-int rightJunction[] = {1, 1, 1};
+int rightJunction[] = {3, 1, 1, 1};
 int rightCount = 0;
 
 int leftJunction[] = {2, 1, 2};
 //int leftJunction[] = {1,1,1};
 int leftCount = 0;
-
-//Actions to catch the first cylinder
-int interTurnsFirst[] = {2, 2, 3};
-int rightJunctionFirst[] = {3};
-
 
 int nextMove;
 int whiteCount=0;
@@ -85,7 +75,6 @@ boolean isFollowing;
 boolean firstCylinder=false; //first cylinder hasn't been caught
 int cylinder=0;
 int counter=0;
-
 
 boolean grip = false;
 unsigned long button_time = 0;
@@ -150,17 +139,21 @@ void loop()
   //use sensors to follow the line and calculate position
   //from right to left the position varies from 0 - 4000 with the middle at 2000
   qtra.read(sensorValues);             //Read Sensors
-  position = qtra.readLine(sensorValues);
+  unsigned int position = qtra.readLine(sensorValues);
   isFollowing = true;
 
-  if(grip==true){
-    if(firstCylinder==false){
+    if(grip)
+    {
+    if(firstCylinder == false)
+    {
       stopRobot();
       delay(50);
       leftServo.detach(); //just tried this since my wheels were drifting
       servoRight.detach(); //just tried this since my wheels were drifting
       pickUpAndHold();
-    }else{
+    }
+    else
+    {
       stopRobot();
       delay(50);
       leftServo.detach(); //just tried this since my wheels were drifting
@@ -171,44 +164,16 @@ void loop()
   
   if (sensorValues[0] > 500 && sensorValues[1] > 500 && sensorValues [2] > 500 && sensorValues[3] > 500 && sensorValues[4] > 500) // Identify Intersection
   {
-    stopRobot ();
-    delay(100);
     Serial.print("Intersection");
 
     position = 9000;
 
+    stopRobot();
+    delay(1000);
+
     forward();
-    delay(200);
+    delay(500);
 
-    if(firstCylinder==false)
-    {
-    //From the decision matrix choose the next move at an intersection
-    nextMove = interTurnsFirst[intersectionCount];
-    intersectionCount++;
-
-    //reset count to 0 if exceeds array size
-    if (intersectionCount = 3)
-    {
-      intersectionCount = 0;
-    }
-    
-    if (nextMove == 1) {
-      forward();
-      delay(500);
-    }
-    if (nextMove == 2) {//Left
-      forward();
-      delay(500);
-      turnLeft();
-      delay(1100);
-    }
-    if (nextMove == 3) {//Right
-      forward();
-      delay(500);
-      turnRight();
-      delay(1100);
-    }
-    }else{
     //From the decision matrix choose the next move at an intersection
     nextMove = interTurns[intersectionCount];
     intersectionCount++;
@@ -218,25 +183,25 @@ void loop()
     {
       intersectionCount = 0;
     }
-    
+
+    if (deadCount == 4)
+    {
+      forward();
+      delay(500);
+      nextMove = 0;
+    }
     if (nextMove == 1) {
       forward();
       delay(500);
     }
     if (nextMove == 2) {
-      forward();
-      delay(500);
       turnLeft();
-      delay(1100);
+      delay(1200);
     }
     if (nextMove == 3) {
-      forward();
-      delay(500);
       turnRight();
-      delay(1100);
+      delay(1150);
     }
-    }
-
     position = qtra.readLine(sensorValues);
   }
 
@@ -255,45 +220,26 @@ void loop()
     {
       stopRobot();
       delay(50);
-
       forward();
       delay(500);
+      
       qtra.read(sensorValues);       //Read Sensors
-
+      
       // If one of the three middle sensors is on a line we are at a right turn T-Junction
-      if (sensorValues [4] < 300 && sensorValues [2] > 800 || sensorValues [4] < 300 && sensorValues [1] > 800 || sensorValues [4] < 300 && sensorValues [3] > 800)
+      if (sensorValues [4] < 300 && sensorValues [2] > 500 || sensorValues [4] < 300 && sensorValues [1] > 500 || sensorValues [4] < 300 && sensorValues [3] > 500)
       {
         position = 9000;
 
         stopRobot();
-        delay(500);
-
-        if(firstCylinder==false){
-          nextMove = rightJunctionFirst [rightCount];
-        rightCount ++;
-
-        if (rightCount = 1)
-        {
-          rightCount = 0;
-        }
-
-        if (nextMove == 1) {
-          forward();
-          delay(500);
-        }
-        if (nextMove == 3) {
-          turnRight();
-          delay(1100);
-        }
-        }else{
+        delay(3000);
 
         nextMove = rightJunction [rightCount];
         rightCount ++;
-
-        if (rightCount = 3)
-        {
-          rightCount = 0;
-        }
+//
+//        if (rightCount == 3)
+//        {
+//          rightCount = 0;
+//        }
 
         if (nextMove == 1) {
           forward();
@@ -301,8 +247,7 @@ void loop()
         }
         if (nextMove == 3) {
           turnRight();
-          delay(1100);
-        }
+          delay(1150);
         }
 
         position = qtra.readLine(sensorValues);
@@ -311,7 +256,7 @@ void loop()
       else
       {
         turnRight();
-        delay(1100);
+        delay(1150);
 
         position = qtra.readLine(sensorValues);
       }
@@ -332,37 +277,35 @@ void loop()
     //The two leftmost sensors should be on the line
     if (sensorValues [3] > 700 && sensorValues [4] > 700)
     {
+      //Go slightly forward
       stopRobot();
       delay(50);
-
-      //Go slightly forward
       forward();
       delay(500);
-      qtra.read(sensorValues);  //Read Sensors
 
+      qtra.read(sensorValues);       //Read Sensors
       // If one of the three middle sensors is on a line we are at a left Turn T-Junction
-      if (sensorValues [0] < 300 && sensorValues [2] > 800 || sensorValues [0] < 300 && sensorValues [1] > 800 || sensorValues [0] < 300 && sensorValues [3] > 800)
+      if (sensorValues [0] < 300 && sensorValues [2] > 500 || sensorValues [0] < 300 && sensorValues [1] > 500 || sensorValues [0] < 300 && sensorValues [3] > 500)
       {
         position = 9000;
 
         stopRobot();
-        delay(500);
+        delay(3000);
 
         nextMove = leftJunction [leftCount];
-        leftCount ++;
+        leftCount++;
 
-        if (leftCount = 3)
+        if (leftCount == 3)
         {
           leftCount = 0;
         }
-
         if (nextMove == 1) {
           forward();
           delay(500);
         }
         if (nextMove == 2) {
           turnLeft();
-          delay(1100);
+          delay(1200);
         }
 
         position = qtra.readLine(sensorValues);
@@ -371,7 +314,7 @@ void loop()
       else
       {
         turnLeft();
-        delay(1100);
+        delay(1200);
 
         position = qtra.readLine(sensorValues);
       }
@@ -388,7 +331,7 @@ void loop()
   }
 
   //if all the sensors are on the white area
-  if (sensorValues[0] < 500 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
+  if (sensorValues[0] < 300 && sensorValues[1] < 300 && sensorValues[2] < 300 && sensorValues[3] < 300 && sensorValues[4] < 300)
   {
     Serial.print("All white IS FORWARD");
     stopRobot();
@@ -399,29 +342,27 @@ void loop()
     findLeftDist ();
     findRightDist();
 
-    if(firstCylinder==false && frontDist <= 15 && leftDist <= 11 && rightDist >= 20){
-      stopRobot();
-      delay(50);
-      leftServo.detach(); //just tried this since my wheels were drifting
-      servoRight.detach(); //just tried this since my wheels were drifting
-      leaveCylinder();
-    }
+    stopRobot();
+    delay(500);
 
     if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
     {
       position = 9000;
 
       turnAround (); //turn 180 degrees because we are at a wall
-      delay(2300);
-
+      delay(2400);
+      deadCount++;
+      
       position = qtra.readLine(sensorValues);
     }
-    else if (frontDist > 16 && frontDist < 35 && leftDist <= 14)
+    else if (frontDist > 16 && leftDist <= 14 || frontDist ==0 && leftDist <= 14)
     {
       position = 9000;
 
-      while (frontDist >= 11)
+      findFrontDist();
+      while (frontDist >= 10 || frontDist ==0)
       {
+        Serial.println (frontDist);
         forward(); 
         delay(100);
         findFrontDist();
@@ -434,10 +375,12 @@ void loop()
       }
 
       turnRight();
-      delay(1100);
+      delay(1150);
 
       findFrontDist();
-      while (frontDist >=26)
+      stopRobot();
+      delay(50);
+      while (frontDist >=26 || frontDist ==0)
       {
         forward();
         delay(100);
@@ -449,13 +392,17 @@ void loop()
           turnRight();
           delay(10);
         }
-//        if (sensorValues [1] > 500 || sensorValues [2] > 500 || sensorValues [3] > 500 && whiteCount == 0)
-//        {
-//          whiteCount++;
-//          break;
-//        }
-//      }
-      //position = qtra.readLine(sensorValues);
+        if (rightDist <= 11)
+        {
+          turnLeft();
+          delay(40);
+        }
+        if (sensorValues [1] > 500 || sensorValues [2] > 500 || sensorValues [3] > 500)
+        {
+          break;
+        }
+      }
+      position = qtra.readLine(sensorValues);
     }
 //    else if (frontDist > 16 && frontDist < 35 && leftDist > 15 && rightDist <= 14 && rightDist > 6)
 //    {
@@ -470,8 +417,16 @@ void loop()
 ////
 ////      position = qtra.readLine(sensorValues);
     }
+
+      if(firstCylinder==false && frontDist <= 15 && leftDist <= 11 && rightDist >= 20)
+      {
+      stopRobot();
+      delay(50);
+      leftServo.detach(); //just tried this since my wheels were drifting
+      servoRight.detach(); //just tried this since my wheels were drifting
+      leaveCylinder();
+    }
   }
-}
 
 // Motion routines for forward, reverse, turns, and stop
 void forward() {
@@ -571,6 +526,40 @@ void onPressed()
   }
 }
 
+void pickUpAndHold ()
+{
+   servoG.write(80); // Open gripper
+   delay(2000);
+   int pos = 0;
+   
+   for (pos = 80; pos <= 168; pos+=1){
+    servoA.write(pos);
+    delay(10);
+   }
+    // Down position
+   delay(1000);
+   servoG.write(28); // Close gripper
+   delay(1000);
+   
+   for(pos = 168; pos >= 65; pos-=1){
+    servoA.write(pos);
+    delay(10);
+   }
+   
+   delay(2000);
+   //servoG.write(40); //open gripper
+   delay(1000);
+   grip = false; // no need to grip any more
+   leftServo.attach(LM);  //re-attach the servos
+   servoRight.attach(RM);
+   //position = 9000;
+
+   turnAround (); //turn 180 degrees because we are at a wall
+   delay(2400);
+
+   //position = qtra.readLine(sensorValues);    
+}
+
 // do the part of picking it up
 void pickUp()
 { 
@@ -600,41 +589,8 @@ void pickUp()
    servoRight.attach(RM);
 }
 
-void pickUpAndHold ()
+void leaveCylinder()
 {
-   servoG.write(80); // Open gripper
-   delay(2000);
-   int pos = 0;
-   
-   for (pos = 80; pos <= 168; pos+=1){
-    servoA.write(pos);
-    delay(10);
-   }
-    // Down position
-   delay(1000);
-   servoG.write(28); // Close gripper
-   delay(1000);
-   
-   for(pos = 168; pos >= 65; pos-=1){
-    servoA.write(pos);
-    delay(10);
-   }
-   
-   delay(2000);
-   //servoG.write(40); //open gripper
-   delay(1000);
-   grip = false; // no need to grip any more
-   leftServo.attach(LM);  //re-attach the servos
-   servoRight.attach(RM);
-   position = 9000;
-
-   turnAround (); //turn 180 degrees because we are at a wall
-   delay(2300);
-
-   position = qtra.readLine(sensorValues);    
-}
-
-void leaveCylinder(){
   int pos = 0;
   for (pos = 65; pos <= 168; pos+=1){
     servoA.write(pos);
@@ -652,10 +608,10 @@ void leaveCylinder(){
    firstCylinder=true;
    leftServo.attach(LM);  //re-attach the servos
    servoRight.attach(RM);
-   position = 9000;
+   //position = 9000;
 
    turnAround (); //turn 180 degrees because we are at a wall
-   delay(2300);
+   delay(2400);
 
-   position = qtra.readLine(sensorValues);   
+   //position = qtra.readLine(sensorValues);   
 }
