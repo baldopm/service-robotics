@@ -234,7 +234,7 @@ void loop()
         }
         
         stopRobot();
-        delay(500);
+        delay(50);
         position = 9000;
 
         if (nextMove == 1) {
@@ -297,7 +297,7 @@ void loop()
         }
         
         stopRobot();
-        delay(500);
+        delay(50);
 
         if (nextMove == 1) {
           forward();
@@ -334,7 +334,7 @@ void loop()
   {
     Serial.print("All white IS FORWARD");
     stopRobot();
-    delay(500);
+    delay(300);
 
     //will either be a dead-end or the line is lost
     findFrontDist();
@@ -608,7 +608,7 @@ void leaveCylinder()
     servoA.write(pos);
     delay(10);
    }
-   firstCylinder=true;
+   firstCylinder = true;
    leftServo.attach(LM);  //re-attach the servos
    servoRight.attach(RM);
    //position = 9000;
