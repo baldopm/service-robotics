@@ -168,13 +168,13 @@ void loop()
     Serial.print("Intersection");
 
     position = 9000;
+    
+    stopRobot();
+    delay(100);
 
     //From the decision matrix choose the next move at an intersection
     nextMove = interTurns[intersectionCount];
     intersectionCount++;
-
-    stopRobot();
-    delay(300);
 
     //if count exceeds array size always turn left
     if (intersectionCount == 13)
