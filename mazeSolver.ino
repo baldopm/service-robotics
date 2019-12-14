@@ -71,8 +71,8 @@ boolean isTurning;
 boolean isFollowing;
 
 boolean firstCylinder=false; //first cylinder hasn't been caught
+int cylinder=0;
 int counter=0;
-boolean Exit=false;
 
 boolean grip = false;
 unsigned long button_time = 0;
@@ -140,10 +140,6 @@ void loop()
   unsigned int position = qtra.readLine(sensorValues);
   isFollowing = true;
 
-    if (counter >= 3 && Exit==false){
-      exit_path();
-      }
-
     if(grip)
     {
     if(firstCylinder == false)
@@ -153,7 +149,6 @@ void loop()
       leftServo.detach(); //just tried this since my wheels were drifting
       servoRight.detach(); //just tried this since my wheels were drifting
       pickUpAndHold();
-      counter++;
     }
     else
     {
@@ -162,7 +157,6 @@ void loop()
       leftServo.detach(); //just tried this since my wheels were drifting
       servoRight.detach(); //just tried this since my wheels were drifting
       pickUp();
-      counter++;
     }
   }
   
@@ -319,7 +313,7 @@ void loop()
       else
       {
         turnLeft();
-        delay(1200);
+        delay(1150);
 
         position = qtra.readLine(sensorValues);
       }
@@ -355,7 +349,7 @@ void loop()
       position = 9000;
 
       turnAround (); //turn 180 degrees because we are at a wall
-      delay(2500);
+      delay(2450);
       deadCount++;
       
       position = qtra.readLine(sensorValues);
@@ -385,22 +379,23 @@ void loop()
       findFrontDist();
       stopRobot();
       delay(50);
-      while (frontDist >=26 || frontDist ==0)
+      while (frontDist >=20 || frontDist ==0)
       {
         forward();
         delay(100);
         findFrontDist();
         findLeftDist();
+        findRightDist();
         qtra.read(sensorValues);
         if (leftDist < 11)
         {
           turnRight();
           delay(10);
         }
-        if (rightDist <= 11)
+        if (rightDist <= 13 || rightDist == 0)
         {
           turnLeft();
-          delay(40);
+          delay(20);
         }
         if (sensorValues [1] > 500 || sensorValues [2] > 500 || sensorValues [3] > 500)
         {
@@ -423,7 +418,7 @@ void loop()
 ////      position = qtra.readLine(sensorValues);
     }
 
-      if(firstCylinder==false && frontDist <= 15 && leftDist <= 11 && rightDist >= 20)
+      if(firstCylinder==false && frontDist <= 15 && leftDist <= 11 && rightDist >= 20 || frontDist == 0 && leftDist <= 11 && rightDist > leftDist)
       {
       stopRobot();
       delay(50);
@@ -521,7 +516,6 @@ void findRightDist()
   Serial.println(rightDist);
 }
 
-
 void onPressed()
 {
   button_time = millis();
@@ -529,7 +523,6 @@ void onPressed()
   {
     grip = true;
     last_button_time = button_time;
-    counter++;
   }
 }
 
@@ -586,7 +579,6 @@ void pickUp()
    for(pos = 168; pos >= 65; pos-=1){
     servoA.write(pos);
     delay(10);
-    
    }
    
    delay(2000);
@@ -625,80 +617,4 @@ void leaveCylinder()
    delay(2400);
 
    //position = qtra.readLine(sensorValues);   
-}
-
-void exit_path()
-{
-  Exit=true;
-  if(interTurns[intersectionCount]==4 && rightJunction [rightCount]== 1 && leftJunction [leftCount]== 0){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    turnAround ();
-    delay(2600);
-    int interTurns[] = {1};
-    int rightJunction[] = {2};
-    }
-  if(interTurns[intersectionCount]==4 && rightJunction [rightCount]== 2 && leftJunction [leftCount]== 0){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    int interTurns[] = {3, 1};
-    int leftJunction[] = {2, 2, 2};
-    }
-  if(interTurns[intersectionCount]==4 && rightJunction [rightCount]== 2 && leftJunction [leftCount]== 1){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    int interTurns[] = {3, 1};
-    int leftJunction[] = {2, 2};
-    }
-  if(interTurns[intersectionCount]==5 && rightJunction [rightCount]== 2 && leftJunction [leftCount]== 1){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    turnAround ();
-    delay(2600);
-    int interTurns[] = {1};
-    int leftJunction[] = {2, 2};
-    int rightJunction[] = {1};
-    }
-  if(interTurns[intersectionCount]==5 && rightJunction [rightCount]== 3 && leftJunction [leftCount]== 1){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    int interTurns[] = {1};
-    int leftJunction[] = {2, 2};
-    }
-  if(interTurns[intersectionCount]==5 && rightJunction [rightCount]== 3 && leftJunction [leftCount]== 2){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    int interTurns[] = {2};
-    int rightJunction[] = {3};
-    }
-  if(interTurns[intersectionCount]==6 && rightJunction [rightCount]== 4 && leftJunction [leftCount]== 2){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    turnAround ();
-    delay(2600);
-    int leftJunction[] = {2};
-    }
-  if(interTurns[intersectionCount]==7 && rightJunction [rightCount]== 4 && leftJunction [leftCount]== 2){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    int interTurns[] = {3};
-    int leftJunction[] = {2};
-    }
-  if(interTurns[intersectionCount]==8 && rightJunction [rightCount]== 4 && leftJunction [leftCount]== 2){
-    intersectionCount=0;
-    leftCount=0;
-    rightCount=0;
-    turnAround ();
-    delay(2600);
-    int interTurns[] = {2};
-    int leftJunction[] = {2};
-    } 
 }
