@@ -45,7 +45,6 @@ unsigned int sensorValues[NUM_SENSORS];
 // Keeping track of distance and turning decisions
 int distance;
 #define ARRAY_SIZE 5;
-//int interTurns[] = {2, 2, 2, 2, 2, 2, 2, 2};
 int interTurns[] = {2, 2, 3, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2};
 int intersectionCount = 0;
 int deadCount = 0;
@@ -54,7 +53,6 @@ int rightJunction[] = {3, 1, 1, 1};
 int rightCount = 0;
 
 int leftJunction[] = {2, 1, 2};
-//int leftJunction[] = {1,1,1};
 int leftCount = 0;
 
 int nextMove;
@@ -169,22 +167,19 @@ void loop()
     position = 9000;
 
     stopRobot();
-    delay(1000);
-
-    forward();
-    delay(500);
-
+    delay(100);
+    
     //From the decision matrix choose the next move at an intersection
     nextMove = interTurns[intersectionCount];
     intersectionCount++;
-
-    //reset count to 0 if exceeds array size
-    if (intersectionCount = 8)
+    
+    //if count exceeds array size always turn left
+    if (intersectionCount == 13)
     {
-      intersectionCount = 0;
+      nextMove = 2;
     }
 
-    if (deadCount == 4)
+    if (deadCount == 3)
     {
       forward();
       delay(500);
@@ -195,12 +190,16 @@ void loop()
       delay(500);
     }
     if (nextMove == 2) {
+      forward();
+      delay(500);
       turnLeft();
       delay(1200);
     }
     if (nextMove == 3) {
+      forward();
+      delay(500);
       turnRight();
-      delay(1150);
+      delay(1200);
     }
     position = qtra.readLine(sensorValues);
   }
@@ -222,24 +221,21 @@ void loop()
       delay(50);
       forward();
       delay(500);
-      
       qtra.read(sensorValues);       //Read Sensors
-      
       // If one of the three middle sensors is on a line we are at a right turn T-Junction
-      if (sensorValues [4] < 300 && sensorValues [2] > 500 || sensorValues [4] < 300 && sensorValues [1] > 500 || sensorValues [4] < 300 && sensorValues [3] > 500)
+      if (sensorValues [4] < 500 && sensorValues [2] > 500 || sensorValues [4] < 500 && sensorValues [1] > 600 || sensorValues [4] < 500 && sensorValues [3] > 600)
       {
-        position = 9000;
-
-        stopRobot();
-        delay(3000);
-
         nextMove = rightJunction [rightCount];
         rightCount ++;
-//
-//        if (rightCount == 3)
-//        {
-//          rightCount = 0;
-//        }
+
+        if (rightCount == 4)
+        {
+          nextMove = 1;
+        }
+        
+        stopRobot();
+        delay(500);
+        position = 9000;
 
         if (nextMove == 1) {
           forward();
@@ -247,16 +243,15 @@ void loop()
         }
         if (nextMove == 3) {
           turnRight();
-          delay(1150);
+          delay(1200);
         }
-
         position = qtra.readLine(sensorValues);
       }
       //Otherwise we can turn fully right
       else
       {
         turnRight();
-        delay(1150);
+        delay(1200);
 
         position = qtra.readLine(sensorValues);
       }
@@ -285,13 +280,9 @@ void loop()
 
       qtra.read(sensorValues);       //Read Sensors
       // If one of the three middle sensors is on a line we are at a left Turn T-Junction
-      if (sensorValues [0] < 300 && sensorValues [2] > 500 || sensorValues [0] < 300 && sensorValues [1] > 500 || sensorValues [0] < 300 && sensorValues [3] > 500)
+      if (sensorValues [0] < 500 && sensorValues [2] > 500 || sensorValues [0] < 300 && sensorValues [1] > 600 || sensorValues [0] < 300 && sensorValues [3] > 600)
       {
         position = 9000;
-
-        stopRobot();
-        delay(3000);
-
         nextMove = leftJunction [leftCount];
         leftCount++;
 
@@ -299,6 +290,15 @@ void loop()
         {
           leftCount = 0;
         }
+
+        if (deadCount == 4)
+        {
+          nextMove = 2;
+        }
+        
+        stopRobot();
+        delay(500);
+
         if (nextMove == 1) {
           forward();
           delay(500);
@@ -307,7 +307,6 @@ void loop()
           turnLeft();
           delay(1200);
         }
-
         position = qtra.readLine(sensorValues);
       }
       //Otherwise we can fully turn left if there is no other option
@@ -343,14 +342,14 @@ void loop()
     findRightDist();
 
     stopRobot();
-    delay(500);
+    delay(10);
 
     if (frontDist <= 15 && leftDist <= 11 && rightDist <= 11)
     {
       position = 9000;
 
       turnAround (); //turn 180 degrees because we are at a wall
-      delay(2400);
+      delay(2500);
       deadCount++;
       
       position = qtra.readLine(sensorValues);
@@ -375,7 +374,7 @@ void loop()
       }
 
       turnRight();
-      delay(1150);
+      delay(1200);
 
       findFrontDist();
       stopRobot();
@@ -555,7 +554,7 @@ void pickUpAndHold ()
    //position = 9000;
 
    turnAround (); //turn 180 degrees because we are at a wall
-   delay(2400);
+   delay(2600);
 
    //position = qtra.readLine(sensorValues);    
 }
@@ -591,6 +590,9 @@ void pickUp()
 
 void leaveCylinder()
 {
+  reverse();
+  delay(100);
+  
   int pos = 0;
   for (pos = 65; pos <= 168; pos+=1){
     servoA.write(pos);
