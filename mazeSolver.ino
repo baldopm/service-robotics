@@ -71,12 +71,22 @@ boolean isTurning;
 boolean isFollowing;
 
 boolean firstCylinder = false; //first cylinder hasn't been caught
-int cylinder = 0;
-int counter = 0;
+int counter=0;
+boolean Exit=false;
 
 boolean grip = false;
 unsigned long button_time = 0;
 unsigned long last_button_time = 0;
+
+ void onPressed()
+  {
+    button_time = millis();
+    if (button_time - last_button_time > 250)
+    {
+      grip = true;
+      last_button_time = button_time;
+    }
+  }
 
 void setup()
 {
@@ -135,6 +145,283 @@ void setup()
   delay(300);
 }
 
+ // Motion routines for forward, reverse, turns, and stop
+  void forward() {
+    leftServo.write(0);
+    servoRight.write(180);
+  }
+
+  void reverse() {
+    leftServo.write(180);
+    servoRight.write(0);
+  }
+
+  void turnRight() {
+    leftServo.write(0);
+    //changed right from 90 to 0
+    servoRight.write(0);
+  }
+  void turnLeft() {
+    leftServo.write(180);
+    //changed left from 90 to 180
+    servoRight.write(180);
+  }
+
+  void stopRobot() {
+    leftServo.write(91);
+    servoRight.write(92);
+  }
+
+  void turnAround()
+  {
+    servoRight.write(0);
+    leftServo.write (0);
+  }
+
+  //Distance to object using ultrasonic sensor
+  void findFrontDist()
+  {
+    // Clears the trigpin
+    digitalWrite(trigF, LOW);
+    delayMicroseconds(2);
+    // Sets the trigPin on HIGH state for 10 micro seconds
+    digitalWrite(trigF, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigF, LOW);
+    // Reads the echoPin, returns the sound wave travel time in microseconds
+    duration1 = pulseIn(echoF, HIGH);
+    // Calculating the distance
+    frontDist = duration1 * 0.034 / 2;
+    // Prints the distance on the Serial Monitor
+    Serial.print("Distance: ");
+    Serial.println(frontDist);
+  }
+
+  void findLeftDist()
+  {
+    // Clears the trigpin
+    digitalWrite(trigL, LOW);
+    delayMicroseconds(2);
+    // Sets the trigPin on HIGH state for 10 micro seconds
+    digitalWrite(trigL, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigL, LOW);
+    // Reads the echoPin, returns the sound wave travel time in microseconds
+    duration2 = pulseIn(echoL, HIGH);
+    // Calculating the distance
+    leftDist = duration2 * 0.034 / 2;
+    // Prints the distance on the Serial Monitor
+    Serial.print("Left Distance: ");
+    Serial.println(leftDist);
+  }
+
+  void findRightDist()
+  {
+    // Clears the trigpin
+    digitalWrite(trigR, LOW);
+    delayMicroseconds(2);
+    // Sets the trigPin on HIGH state for 10 micro seconds
+    digitalWrite(trigR, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigR, LOW);
+    // Reads the echoPin, returns the sound wave travel time in microseconds
+    duration3 = pulseIn(echoR, HIGH);
+    // Calculating the distance
+    rightDist = duration3 * 0.034 / 2;
+    // Prints the distance on the Serial Monitor
+    Serial.print("Right Distance: ");
+    Serial.println(rightDist);
+  }
+
+
+  void pickUpAndHold ()
+  {
+    servoG.write(80); // Open gripper
+    delay(2000);
+    int pos = 0;
+
+    for (pos = 80; pos <= 168; pos += 1) {
+      servoA.write(pos);
+      delay(10);
+    }
+    // Down position
+    delay(1000);
+    servoG.write(28); // Close gripper
+    delay(1000);
+
+    for (pos = 168; pos >= 65; pos -= 1) {
+      servoA.write(pos);
+      delay(10);
+    }
+
+    delay(2000);
+    //servoG.write(40); //open gripper
+    delay(1000);
+    grip = false; // no need to grip any more
+    leftServo.attach(LM);  //re-attach the servos
+    servoRight.attach(RM);
+    //position = 9000;
+
+    turnAround (); //turn 180 degrees because we are at a wall
+    delay(2600);
+
+    //position = qtra.readLine(sensorValues);
+  }
+
+  // do the part of picking it up
+  void pickUp()
+  {
+    servoG.write(80); // Open gripper
+    delay(2000);
+    int pos = 0;
+
+    for (pos = 80; pos <= 168; pos += 1) {
+      servoA.write(pos);
+      delay(10);
+    }
+    // Down position
+    delay(1000);
+    servoG.write(28); // Close gripper
+    delay(1000);
+
+    for (pos = 168; pos >= 65; pos -= 1) {
+      servoA.write(pos);
+      delay(10);
+    }
+
+    delay(2000);
+    servoG.write(40); //open gripper
+    delay(1000);
+    grip = false; // no need to grip any more
+    leftServo.attach(LM);  //re-attach the servos
+    servoRight.attach(RM);
+  }
+
+  void leaveCylinder()
+  {
+    reverse();
+    delay(100);
+
+    int pos = 0;
+    for (pos = 65; pos <= 168; pos += 1) {
+      servoA.write(pos);
+      delay(10);
+    }
+    // Down position
+    delay(1000);
+    servoG.write(40); // Close gripper
+    delay(1000);
+
+    for (pos = 168; pos >= 65; pos -= 1) {
+      servoA.write(pos);
+      delay(10);
+    }
+    firstCylinder = true;
+    leftServo.attach(LM);  //re-attach the servos
+    servoRight.attach(RM);
+    //position = 9000;
+
+    turnAround (); //turn 180 degrees because we are at a wall
+    delay(2400);
+
+    //position = qtra.readLine(sensorValues);
+  }
+
+  void exit_path()
+{
+  Serial.println("EXIT");
+  Exit=true;
+  if(intersectionCount==5 && rightCount== 1 && leftCount== 0){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    turnAround ();
+    delay(2400);
+    int interTurnsE[] = {1};
+    memcpy(interTurns,interTurnsE,1);
+    int rightJunctionE[] = {3};
+    memcpy(rightJunction,rightJunctionE,1);
+    }
+  if(intersectionCount==5 && rightCount== 2 && leftCount== 0){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    int interTurnsE[] = {3,1};
+    memcpy(interTurns,interTurnsE,2);
+    int leftJunctionE[] = {2, 2, 2};
+    memcpy(leftJunction,leftJunctionE,3);
+    }
+  if(intersectionCount==5 && rightCount== 2 && leftCount== 1){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    int interTurnsE[] = {3,1};
+    memcpy(interTurns,interTurnsE,2);
+    int leftJunctionE[] = {2, 2};
+    memcpy(leftJunction,leftJunctionE,2);
+    }
+  if(intersectionCount==6 && rightCount== 2 && leftCount== 1){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    turnAround ();
+    delay(2400);
+    int interTurnsE[] = {1};
+    memcpy(interTurns,interTurnsE,1);
+    int leftJunctionE[] = {2, 2};
+    memcpy(leftJunction,leftJunctionE,2);
+    int rightJunctionE[] = {1};
+    memcpy(rightJunction,rightJunctionE,1);
+    }
+  if(intersectionCount==6 && rightCount== 3 && leftCount== 1){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    int interTurnsE[] = {1};
+    memcpy(interTurns,interTurnsE,1);
+    int leftJunctionE[] = {2, 2};
+    memcpy(leftJunction,leftJunctionE,2);    
+    }
+  if(intersectionCount==6 && rightCount== 3 && leftCount== 2){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    int interTurnsE[] = {2};
+    memcpy(interTurns,interTurnsE,1);
+    int rightJunctionE[] = {3};
+    memcpy(rightJunction,rightJunctionE,1);
+    }
+  if(intersectionCount==7 && rightCount== 4 && leftCount== 2){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    turnAround ();
+    delay(2400);
+    int leftJunctionE[] = {2};
+    memcpy(leftJunction,leftJunctionE,1);  
+    }
+  if(intersectionCount==8 && rightCount== 4 && leftCount== 2){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    int interTurnsE[] = {3};
+    memcpy(interTurns,interTurnsE,1);
+    int leftJunctionE[] = {2};
+    memcpy(leftJunction,leftJunctionE,1);
+    }
+  if(intersectionCount==9 && rightCount== 4 && leftCount== 2){
+    intersectionCount=0;
+    leftCount=0;
+    rightCount=0;
+    turnAround ();
+    delay(2400);
+    int interTurnsE[] = {2};
+    memcpy(interTurns,interTurnsE,1);
+    int leftJunctionE[] = {2};
+    memcpy(leftJunction,leftJunctionE,1);
+    } 
+}
+
 void loop()
 {
   //use sensors to follow the line and calculate position
@@ -143,23 +430,32 @@ void loop()
   unsigned int position = qtra.readLine(sensorValues);
   isFollowing = true;
 
+  if (counter >= 3 && Exit==false){
+      exit_path();
+      }
+
+
   if (grip)
   {
     if (firstCylinder == false)
     {
       stopRobot();
       delay(50);
+      counter++;
       leftServo.detach(); //just tried this since my wheels were drifting
       servoRight.detach(); //just tried this since my wheels were drifting
       pickUpAndHold();
+      
     }
     else
     {
       stopRobot();
       delay(50);
+      counter++;
       leftServo.detach(); //just tried this since my wheels were drifting
       servoRight.detach(); //just tried this since my wheels were drifting
       pickUp();
+      
     }
   }
 
@@ -421,194 +717,5 @@ void loop()
       leaveCylinder();
     }
   }
-
-  // Motion routines for forward, reverse, turns, and stop
-  void forward() {
-    leftServo.write(0);
-    servoRight.write(180);
-  }
-
-  void reverse() {
-    leftServo.write(180);
-    servoRight.write(0);
-  }
-
-  void turnRight() {
-    leftServo.write(0);
-    //changed right from 90 to 0
-    servoRight.write(0);
-  }
-  void turnLeft() {
-    leftServo.write(180);
-    //changed left from 90 to 180
-    servoRight.write(180);
-  }
-
-  void stopRobot() {
-    leftServo.write(91);
-    servoRight.write(92);
-  }
-
-  void turnAround()
-  {
-    servoRight.write(0);
-    leftServo.write (0);
-  }
-
-  //Distance to object using ultrasonic sensor
-  void findFrontDist()
-  {
-    // Clears the trigpin
-    digitalWrite(trigF, LOW);
-    delayMicroseconds(2);
-    // Sets the trigPin on HIGH state for 10 micro seconds
-    digitalWrite(trigF, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigF, LOW);
-    // Reads the echoPin, returns the sound wave travel time in microseconds
-    duration1 = pulseIn(echoF, HIGH);
-    // Calculating the distance
-    frontDist = duration1 * 0.034 / 2;
-    // Prints the distance on the Serial Monitor
-    Serial.print("Distance: ");
-    Serial.println(frontDist);
-  }
-
-  void findLeftDist()
-  {
-    // Clears the trigpin
-    digitalWrite(trigL, LOW);
-    delayMicroseconds(2);
-    // Sets the trigPin on HIGH state for 10 micro seconds
-    digitalWrite(trigL, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigL, LOW);
-    // Reads the echoPin, returns the sound wave travel time in microseconds
-    duration2 = pulseIn(echoL, HIGH);
-    // Calculating the distance
-    leftDist = duration2 * 0.034 / 2;
-    // Prints the distance on the Serial Monitor
-    Serial.print("Left Distance: ");
-    Serial.println(leftDist);
-  }
-
-  void findRightDist()
-  {
-    // Clears the trigpin
-    digitalWrite(trigR, LOW);
-    delayMicroseconds(2);
-    // Sets the trigPin on HIGH state for 10 micro seconds
-    digitalWrite(trigR, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigR, LOW);
-    // Reads the echoPin, returns the sound wave travel time in microseconds
-    duration3 = pulseIn(echoR, HIGH);
-    // Calculating the distance
-    rightDist = duration3 * 0.034 / 2;
-    // Prints the distance on the Serial Monitor
-    Serial.print("Right Distance: ");
-    Serial.println(rightDist);
-  }
-
-  void onPressed()
-  {
-    button_time = millis();
-    if (button_time - last_button_time > 250)
-    {
-      grip = true;
-      last_button_time = button_time;
-    }
-  }
-
-  void pickUpAndHold ()
-  {
-    servoG.write(80); // Open gripper
-    delay(2000);
-    int pos = 0;
-
-    for (pos = 80; pos <= 168; pos += 1) {
-      servoA.write(pos);
-      delay(10);
-    }
-    // Down position
-    delay(1000);
-    servoG.write(28); // Close gripper
-    delay(1000);
-
-    for (pos = 168; pos >= 65; pos -= 1) {
-      servoA.write(pos);
-      delay(10);
-    }
-
-    delay(2000);
-    //servoG.write(40); //open gripper
-    delay(1000);
-    grip = false; // no need to grip any more
-    leftServo.attach(LM);  //re-attach the servos
-    servoRight.attach(RM);
-    //position = 9000;
-
-    turnAround (); //turn 180 degrees because we are at a wall
-    delay(2600);
-
-    //position = qtra.readLine(sensorValues);
-  }
-
-  // do the part of picking it up
-  void pickUp()
-  {
-    servoG.write(80); // Open gripper
-    delay(2000);
-    int pos = 0;
-
-    for (pos = 80; pos <= 168; pos += 1) {
-      servoA.write(pos);
-      delay(10);
-    }
-    // Down position
-    delay(1000);
-    servoG.write(28); // Close gripper
-    delay(1000);
-
-    for (pos = 168; pos >= 65; pos -= 1) {
-      servoA.write(pos);
-      delay(10);
-    }
-
-    delay(2000);
-    servoG.write(40); //open gripper
-    delay(1000);
-    grip = false; // no need to grip any more
-    leftServo.attach(LM);  //re-attach the servos
-    servoRight.attach(RM);
-  }
-
-  void leaveCylinder()
-  {
-    reverse();
-    delay(100);
-
-    int pos = 0;
-    for (pos = 65; pos <= 168; pos += 1) {
-      servoA.write(pos);
-      delay(10);
-    }
-    // Down position
-    delay(1000);
-    servoG.write(40); // Close gripper
-    delay(1000);
-
-    for (pos = 168; pos >= 65; pos -= 1) {
-      servoA.write(pos);
-      delay(10);
-    }
-    firstCylinder = true;
-    leftServo.attach(LM);  //re-attach the servos
-    servoRight.attach(RM);
-    //position = 9000;
-
-    turnAround (); //turn 180 degrees because we are at a wall
-    delay(2400);
-
-    //position = qtra.readLine(sensorValues);
-  }
+}
+ 
